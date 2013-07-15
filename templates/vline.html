@@ -1,0 +1,115 @@
+{% load vline_tags %}
+
+<script src="https://vhelp.fwd.wf/static/jquery-2.0.3.min.js"></script>
+
+<div id = 'video_panel' style = 'position:fixed;bottom:0;right:0;height:500px;width:500px'></div>
+
+
+<script src="https://static.vline.com/vline.js" type="text/javascript"></script>
+
+<iframe src="" id = "customer_preview" style="width:900px;height:780px">
+
+
+
+</iframe>
+
+<script>
+
+var vlineClient = (function(){
+  
+  var client, session,
+    
+    serviceId = {% vline_service_id %};
+
+    {% if user.is_authenticated %}
+    var authToken = {{ user|vline_auth_token|safe }}, 
+    profile = {{ user|vline_user_profile|safe }}; 
+    
+    {% else %}
+
+    
+
+    var authToken = '{{ auth_token|safe }}',
+    profile = {{ profile|safe }};
+
+    {% endif %}
+
+    //admin
+
+
+  // Create vLine client  
+  window.vlineClient = client = vline.Client.create({"serviceId": serviceId, "ui": true, "uiVideoPanel": "video_panel", "uiIncomingDialog":false});
+  // Add login event handler
+  client.on('login', onLogin);
+  // Do login
+  client.login(serviceId, profile, authToken);
+  
+  client.on('add:mediaSession', onMediaSession);
+
+  client.on("recv:im", onNewMessage);
+
+  function onLogin(event) {
+    session = event.target;
+
+    // Find and init call buttons
+    var callButtons = document.getElementsByClassName('callbutton');
+    for (var i=0; i < callButtons.length; ++i) {
+      initCallButton(callButtons[i]);
+    }
+  }
+
+  function onMediaSession(event) {
+    var mediaSession = event.target;
+    mediaSession.start();
+  }
+  
+
+  var old_msg;
+
+  function onNewMessage(event) {
+    var msg = event.message;
+    if(old_msg == msg.getBody()){
+      return;
+    }
+      old_msg = msg.getBody();
+      sender = msg.getSender();
+      console.log(msg.getBody());
+      //if(sender.getId() == )
+      console.log(event.target);
+
+        $('#customer_preview').attr('src', msg.getBody());
+      
+  }
+
+  // add event handlers for call button
+  function initCallButton(button) {
+    var userId = button.getAttribute('data-userid');
+  
+    // fetch person object associated with username
+    session.getPerson(userId).done(function(person) {
+      // update button state with presence
+      function onPresenceChange() {
+        button.setAttribute('data-presence', person.getPresenceState());
+      }
+    
+      // set current presence
+      onPresenceChange();
+    
+      // handle presence changes
+      person.on('change:presenceState', onPresenceChange);
+
+      //person.on('recv:im', onNewMessage);
+    
+      // start a call when button is clicked
+      button.addEventListener('click', function() {
+        person.startMedia();
+      });
+    });
+  }
+  
+  return client;
+})();
+
+</script>
+
+
